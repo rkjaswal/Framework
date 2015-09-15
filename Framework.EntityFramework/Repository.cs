@@ -3,7 +3,7 @@ using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 
-namespace Framework.Repository
+namespace Framework.EntityFramework
 {
     public abstract class Repository<T> : IRepository<T> where T : class
     {

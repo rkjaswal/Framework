@@ -1,7 +1,7 @@
 ﻿
 using System;
 
-namespace Framework.Repository
+namespace Framework.EntityFramework
 {
     public interface IUnitOfWork : IDisposable
     {

@@ -3,7 +3,7 @@ using System.Data.Entity;
 using System.Data.Entity.Core.Objects;
 using System.Data.Entity.Infrastructure;
 
-namespace Framework.Repository
+namespace Framework.EntityFramework
 {
     public abstract class UnitOfWork : IUnitOfWork
     {
