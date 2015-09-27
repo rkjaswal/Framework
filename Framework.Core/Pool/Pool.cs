@@ -5,6 +5,10 @@ using System.Threading;
 
 namespace Framework.Core.Pool
 {
+    /// <summary>
+    ///     Pool
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class Pool<T> : IPool<T> where T : PooledItem
     {
         private readonly ILogger _logger;
@@ -44,7 +48,7 @@ namespace Framework.Core.Pool
             
             if (PooledItems.TryDequeue(out pooledItem))
             {
-                _logger.Debug("Getting an existing pooled item. Pool size is " + _poolSize);
+                _logger.Debug(string.Format("Got an existing pooled item. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
                 Interlocked.Decrement(ref _poolSize);
                 return pooledItem;
             }
@@ -53,7 +57,6 @@ namespace Framework.Core.Pool
                 lock (_lock)
                 {
                     if (_poolSize >= _maxPoolSize) throw new Exception("Maximum pool size limit reached");
-                    _logger.Debug("Creating new pooled item. Pool size is " + _poolSize);
                     return CreatePooledItem();
                 }
             }
@@ -74,13 +77,12 @@ namespace Framework.Core.Pool
                 else
                 {
                     PooledItems.Enqueue(pooledItem);
-                    Interlocked.Increment(ref _poolSize);
-                    _logger.Debug("Successfully returned pooled item back to pool. Pool size is " + _poolSize);
+                    _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
                 }
             }
             catch
             {
-                _logger.Debug("Failed to return pooled item back to pool. Pool size is " + _poolSize);
+                _logger.Error(string.Format("Failed to return pooled item back to pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
                 Interlocked.Decrement(ref _poolSize);
                 pooledItem.Dispose();
             }
@@ -94,7 +96,7 @@ namespace Framework.Core.Pool
         public void Remove(T pooledItem)
         {
             Interlocked.Decrement(ref _poolSize);
-            _logger.Debug("Removing pooled item from pool. Pool size is " + _poolSize);
+            _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
             pooledItem.Dispose();
         }
 
@@ -106,12 +108,13 @@ namespace Framework.Core.Pool
         {
             try
             {
+                var pooledItem = (T)Activator.CreateInstance(typeof(T), _logger);
                 Interlocked.Increment(ref _poolSize);
-                return (T)Activator.CreateInstance(typeof(T), _logger);
+                _logger.Debug(string.Format("Created new pooled item. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
+                return pooledItem;
             }
             catch
             {
-                Interlocked.Decrement(ref _poolSize);
                 throw;
             }
         }
