@@ -1,17 +1,23 @@
 ﻿using Framework.Core.Pool;
+using Framework.Logger;
 using System;
 
 namespace Framework.Core.UnitTests.Pool
 {
     public class TestPooledItem : IPooledItem
     {
+        private ILogger _logger;
         private bool _disposed;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TestPooledItem"/> class.
         /// </summary>
-        public TestPooledItem()
+        /// <param name="logger"></param>
+        public TestPooledItem(ILogger logger)
         {
+            if (logger == null) throw new ArgumentNullException("logger");
+
+            _logger = logger;
         }
 
         /// <summary>

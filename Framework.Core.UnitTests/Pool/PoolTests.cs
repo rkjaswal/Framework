@@ -25,7 +25,7 @@ namespace Framework.Core.UnitTests.Pool
         [TestMethod]
         public void WhenMaxPoolSizeTenThenTenPooledItemsAreCreated()
         {
-            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(), 10);
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
             var poolItems = new List<TestPooledItem>();
 
             for (var i = 0; i < 20; i++)
@@ -61,7 +61,7 @@ namespace Framework.Core.UnitTests.Pool
         [TestMethod]
         public void CreateReturnOfPooledItemsIsThreadSafe()
         {
-            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(), 10);
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
             var pooledItems = new ConcurrentQueue<TestPooledItem>();
             var enqueueItems = 0;
             var dequeueItems = 0;
@@ -102,7 +102,7 @@ namespace Framework.Core.UnitTests.Pool
         [TestMethod]
         public void CreateOfPooledItemsIsThreadSafe()
         {
-            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(), 10);
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
             var pooledItems = new ConcurrentQueue<TestPooledItem>();
 
             foreach (int num in Enumerable.Range(0, 100))
@@ -129,7 +129,7 @@ namespace Framework.Core.UnitTests.Pool
         [TestMethod]
         public void PooledItemRemoveTest()
         {
-            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(), 10);
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
             var pooledItems = new ConcurrentQueue<TestPooledItem>();
 
             var pooledItem = pool.Get();

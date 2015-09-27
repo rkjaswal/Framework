@@ -37,7 +37,7 @@ namespace Framework.Core.Pool
             T pooledItem = default(T);
             if (PooledItems.TryDequeue(out pooledItem))
             {
-                _logger.Info("Getting an existing pooled item.");
+                _logger.Debug("Getting an existing pooled item. Pool size is " + _poolSize);
                 Interlocked.Decrement(ref _poolSize);
                 return pooledItem;
             }
@@ -46,7 +46,7 @@ namespace Framework.Core.Pool
                 lock (_lock)
                 {
                     if (_poolSize >= _maxPoolSize) throw new Exception("Maximum pool size limit reached");
-                    _logger.Info("Creating new pooled item.");
+                    _logger.Debug("Creating new pooled item. Pool size is " + _poolSize);
                     return CreatePooledItem();
                 }
             }
@@ -62,11 +62,11 @@ namespace Framework.Core.Pool
             {
                 PooledItems.Enqueue(pooledItem);
                 Interlocked.Increment(ref _poolSize);
-                _logger.Info("Successfully returning pooled item back to pool.");
+                _logger.Debug("Successfully returned pooled item back to pool. Pool size is " + _poolSize);
             }
             catch
             {
-                _logger.Info("Failed to return pooled item back to pool.");
+                _logger.Debug("Failed to return pooled item back to pool. Pool size is " + _poolSize);
                 Interlocked.Decrement(ref _poolSize);
                 pooledItem.Dispose();
             }
@@ -80,6 +80,7 @@ namespace Framework.Core.Pool
         public void Remove(T pooledItem)
         {
             Interlocked.Decrement(ref _poolSize);
+            _logger.Debug("Removing pooled item from pool. Pool size is " + _poolSize);
             pooledItem.Dispose();
         }
 
@@ -92,7 +93,7 @@ namespace Framework.Core.Pool
             try
             {
                 Interlocked.Increment(ref _poolSize);
-                return (T)Activator.CreateInstance(typeof(T));
+                return (T)Activator.CreateInstance(typeof(T), _logger);
             }
             catch
             {
