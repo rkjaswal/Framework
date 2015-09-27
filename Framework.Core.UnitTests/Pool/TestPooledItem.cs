@@ -4,10 +4,9 @@ using System;
 
 namespace Framework.Core.UnitTests.Pool
 {
-    public class TestPooledItem : IPooledItem
+    public class TestPooledItem : PooledItem
     {
         private ILogger _logger;
-        private bool _disposed;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="TestPooledItem"/> class.
@@ -18,31 +17,14 @@ namespace Framework.Core.UnitTests.Pool
             if (logger == null) throw new ArgumentNullException("logger");
 
             _logger = logger;
+
+            LifeTime = 1;
         }
 
-        /// <summary>
-        ///  Dispose
-        /// </summary>
-        public void Dispose()
+        protected override void Dispose(bool disposing)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        ///     Dispose
-        /// </summary>
-        /// <param name="disposing">The disposing flag.</param>
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed) return;
-
-            if (disposing)
-            {
-                //Release resources here.
-            }
-
-            _disposed = true;
+            base.Dispose(disposing);
+            //Release resources here
         }
     }
 }

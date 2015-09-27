@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace Framework.Core.Pool
 {
-    public class Pool<T> : IPool<T> where T : IPooledItem
+    public class Pool<T> : IPool<T> where T : PooledItem
     {
         private readonly ILogger _logger;
         private readonly int _maxPoolSize;
@@ -16,6 +16,12 @@ namespace Framework.Core.Pool
 
         private ConcurrentQueue<T> PooledItems { get; set; }
 
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="Pool"/> class.
+        /// </summary>
+        /// <param name="logger"></param>
+        /// <param name="pooledItemFactory"></param>
+        /// <param name="maxPoolSize"></param>
         public Pool(ILogger logger, Func<T> pooledItemFactory, int maxPoolSize = 5)
         {
             if (logger == null) throw new ArgumentNullException("logger");
@@ -35,6 +41,7 @@ namespace Framework.Core.Pool
         public T Get()
         {
             T pooledItem = default(T);
+            
             if (PooledItems.TryDequeue(out pooledItem))
             {
                 _logger.Debug("Getting an existing pooled item. Pool size is " + _poolSize);
@@ -60,9 +67,16 @@ namespace Framework.Core.Pool
         {
             try
             {
-                PooledItems.Enqueue(pooledItem);
-                Interlocked.Increment(ref _poolSize);
-                _logger.Debug("Successfully returned pooled item back to pool. Pool size is " + _poolSize);
+                if (IsPooledItemExpired(pooledItem))
+                {
+                    Remove(pooledItem);
+                }
+                else
+                {
+                    PooledItems.Enqueue(pooledItem);
+                    Interlocked.Increment(ref _poolSize);
+                    _logger.Debug("Successfully returned pooled item back to pool. Pool size is " + _poolSize);
+                }
             }
             catch
             {
@@ -99,6 +113,26 @@ namespace Framework.Core.Pool
             {
                 Interlocked.Decrement(ref _poolSize);
                 throw;
+            }
+        }
+
+        private bool IsPooledItemExpired(T pooledItem)
+        {
+            var timespan = DateTime.Now - pooledItem.CreateDateTime;
+            return timespan.Minutes >= pooledItem.LifeTime; 
+        }
+
+        /// <summary>
+        ///     Removes expired pooled items
+        /// </summary>
+        private void RemoveExpiredPooledItems()
+        {
+            foreach(var pooledItem in PooledItems)
+            {
+                if (IsPooledItemExpired(pooledItem))
+                {
+                    Remove(pooledItem);
+                }
             }
         }
 

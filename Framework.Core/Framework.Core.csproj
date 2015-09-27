@@ -43,6 +43,7 @@
     <Compile Include="Pool\IPool.cs" />
     <Compile Include="Pool\IPooledItem.cs" />
     <Compile Include="Pool\Pool.cs" />
+    <Compile Include="Pool\PooledItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
