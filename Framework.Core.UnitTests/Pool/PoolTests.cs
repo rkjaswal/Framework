@@ -202,5 +202,22 @@ namespace Framework.Core.UnitTests.Pool
             Assert.IsTrue(actualItems >= 0 && actualItems <= expectedItems);
             Assert.IsTrue(actualItems == enqueueItems - dequeueItems);
         }
+
+        [TestMethod]
+        public void ReturnSamePooledItemTwice()
+        {
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
+            var pooledItems = new ConcurrentQueue<TestPooledItem>();
+
+            var pooledItem = pool.Get();
+
+            pool.Return(pooledItem);
+            pool.Return(pooledItem);
+
+            var expectedItems = 0;
+            var actualItems = pooledItems.Count;
+
+            Assert.AreEqual(expectedItems, actualItems);
+        }
     }
 }
