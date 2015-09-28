@@ -44,7 +44,7 @@ namespace Framework.Core.Pool
         /// <returns></returns>
         public T Get()
         {
-            RemoveExpired();
+            RemoveExpiredPooledItems();
 
             var pooledItem = default(T);
             
@@ -145,7 +145,7 @@ namespace Framework.Core.Pool
         /// <summary>
         ///     Removes expired pooled items
         /// </summary>
-        private void RemoveExpired()
+        private void RemoveExpiredPooledItems()
         {
             lock(Lock)
             {
