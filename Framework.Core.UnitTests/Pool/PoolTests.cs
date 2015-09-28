@@ -15,6 +15,7 @@ namespace Framework.Core.UnitTests.Pool
     public class PoolTests
     {
         private Mock<ILogger> _logger;
+        private static readonly object Lock = new object(); 
 
         [TestInitialize]
         public void Init()
@@ -66,7 +67,7 @@ namespace Framework.Core.UnitTests.Pool
             var enqueueItems = 0;
             var dequeueItems = 0;
 
-            foreach (int num in Enumerable.Range(0, 100))
+            foreach (int num in Enumerable.Range(0, 1000))
             {
                 var thread1 = new Thread(() =>
                 {
@@ -96,7 +97,7 @@ namespace Framework.Core.UnitTests.Pool
             var expectedItems = 10;
             var actualItems = pooledItems.Count;
 
-            Assert.IsTrue(actualItems <= expectedItems);
+            Assert.IsTrue(actualItems >= 0 && actualItems <= expectedItems);
         }
 
         [TestMethod]
@@ -140,6 +141,66 @@ namespace Framework.Core.UnitTests.Pool
             var actualItems = pooledItems.Count;
 
             Assert.AreEqual(expectedItems, actualItems);
+        }
+
+        [TestMethod]
+        public void CreateReturnOfPooledItemsIsParallelInvokeSafe()
+        {
+            var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
+            var pooledItems = new ConcurrentQueue<TestPooledItem>();
+            var enqueueItems = 0;
+            var dequeueItems = 0;
+
+            Action Get = () =>
+            {
+                for (var i = 0; i < 1000; i++)
+                {
+                    try
+                    {
+                        pooledItems.Enqueue(pool.Get());
+                        enqueueItems++;
+                    }
+                    catch
+                    {
+                    }
+                }
+            };
+
+            Action Return = () =>
+            {
+                Thread.Sleep(10);
+                for (var i = 0; i < 500; i++)
+                {
+                    TestPooledItem pooledItem = null;
+                    if (pooledItems.TryDequeue(out pooledItem))
+                    {
+                        dequeueItems++;
+                        pool.Return(pooledItem);
+                    }
+                }
+            };
+
+            Action Remove = () =>
+            {
+                Thread.Sleep(40);
+                for (var i = 0; i < 500; i++)
+                {
+                    TestPooledItem pooledItem = null;
+                    if (pooledItems.TryDequeue(out pooledItem))
+                    {
+                        dequeueItems++;
+                        pool.Remove(pooledItem);
+                    }
+                }
+            };
+
+            Parallel.Invoke(Get, Return, Remove);
+
+            var expectedItems = 10;
+            var actualItems = pooledItems.Count;
+
+            Assert.IsTrue(actualItems >= 0 && actualItems <= expectedItems);
+            Assert.IsTrue(actualItems == enqueueItems - dequeueItems);
         }
     }
 }

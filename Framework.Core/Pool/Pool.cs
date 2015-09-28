@@ -16,7 +16,7 @@ namespace Framework.Core.Pool
         private readonly Func<T> _pooledItemFactory = null;
         private int _poolSize;
         private bool _disposed;
-        private static object _lock = new object();
+        private static object Lock = new object();
 
         private ConcurrentQueue<T> PooledItems { get; set; }
 
@@ -44,19 +44,20 @@ namespace Framework.Core.Pool
         /// <returns></returns>
         public T Get()
         {
-            T pooledItem = default(T);
+            RemoveExpired();
+
+            var pooledItem = default(T);
             
             if (PooledItems.TryDequeue(out pooledItem))
             {
-                _logger.Debug(string.Format("Got an existing pooled item. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
-                Interlocked.Decrement(ref _poolSize);
+                _logger.Debug(string.Format("Got an existing pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize));
                 return pooledItem;
             }
             else
             {
-                lock (_lock)
+                lock (Lock)
                 {
-                    if (_poolSize >= _maxPoolSize) throw new Exception("Maximum pool size limit reached");
+                    if (_poolSize >= _maxPoolSize) throw new Exception("Maximum pool size limit reached.");
                     return CreatePooledItem();
                 }
             }
@@ -68,23 +69,38 @@ namespace Framework.Core.Pool
         /// <param name="item">The pooled item.</param>
         public void Return(T pooledItem)
         {
-            try
+            if (IsExpired(pooledItem))
             {
-                if (IsPooledItemExpired(pooledItem))
+                try
                 {
                     Remove(pooledItem);
                 }
-                else
+                catch(Exception ex)
                 {
-                    PooledItems.Enqueue(pooledItem);
-                    _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
+                    _logger.Error(string.Format("Failed to remove expired pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize), ex);
+                    throw;
                 }
             }
-            catch
+            else
             {
-                _logger.Error(string.Format("Failed to return pooled item back to pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
-                Interlocked.Decrement(ref _poolSize);
-                pooledItem.Dispose();
+                try
+                {
+                    PooledItems.Enqueue(pooledItem);
+                    _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize));
+                }
+                catch(Exception ex)
+                {
+                    _logger.Error(string.Format("Failed to return pooled item back to pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize), ex);
+                    try
+                    {
+                        Remove(pooledItem);
+                    }
+                    catch(Exception e)
+                    {
+                        _logger.Error(string.Format("Failed to remove pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize), e);
+                        throw;
+                    }
+                }
             }
         }
 
@@ -96,7 +112,7 @@ namespace Framework.Core.Pool
         public void Remove(T pooledItem)
         {
             Interlocked.Decrement(ref _poolSize);
-            _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
+            _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize));
             pooledItem.Dispose();
         }
 
@@ -108,18 +124,19 @@ namespace Framework.Core.Pool
         {
             try
             {
-                var pooledItem = (T)Activator.CreateInstance(typeof(T), _logger);
+                var pooledItem = _pooledItemFactory();
                 Interlocked.Increment(ref _poolSize);
-                _logger.Debug(string.Format("Created new pooled item. Guid is {0}, Pool size is {1}", pooledItem.Guid, _poolSize));
+                _logger.Debug(string.Format("Created new pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize));
                 return pooledItem;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.Error("Error occured while creating new pooled item.", ex);
                 throw;
             }
         }
 
-        private bool IsPooledItemExpired(T pooledItem)
+        private bool IsExpired(T pooledItem)
         {
             var timespan = DateTime.Now - pooledItem.CreateDateTime;
             return timespan.Minutes >= pooledItem.LifeTime; 
@@ -128,13 +145,24 @@ namespace Framework.Core.Pool
         /// <summary>
         ///     Removes expired pooled items
         /// </summary>
-        private void RemoveExpiredPooledItems()
+        private void RemoveExpired()
         {
-            foreach(var pooledItem in PooledItems)
+            lock(Lock)
             {
-                if (IsPooledItemExpired(pooledItem))
+                foreach (var pooledItem in PooledItems)
                 {
-                    Remove(pooledItem);
+                    if (IsExpired(pooledItem))
+                    {
+                        try
+                        {
+                            Remove(pooledItem);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(string.Format("Failed to remove expired pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _poolSize), ex);
+                            throw;
+                        }
+                    }
                 }
             }
         }
