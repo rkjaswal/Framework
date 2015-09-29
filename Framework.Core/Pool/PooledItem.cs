@@ -10,6 +10,7 @@ namespace Framework.Core.Pool
         private DateTime _createDateTime;
         private Guid _guid;
         private int _lifeTime;
+        private PooledItemStatus _status;
         private bool _disposed;
 
         /// <summary>
@@ -35,6 +36,12 @@ namespace Framework.Core.Pool
         {
             get { return _lifeTime; }
             set { _lifeTime = value; }
+        }
+
+        public PooledItemStatus Status
+        {
+            get { return _status; }
+            set { _status = value; }
         }
 
         /// <summary>

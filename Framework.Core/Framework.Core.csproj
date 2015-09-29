@@ -60,6 +60,7 @@
     <Compile Include="Pool\IPooledItem.cs" />
     <Compile Include="Pool\Pool.cs" />
     <Compile Include="Pool\PooledItem.cs" />
+    <Compile Include="Pool\PooledItemStatus.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

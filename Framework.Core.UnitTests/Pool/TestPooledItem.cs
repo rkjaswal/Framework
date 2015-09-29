@@ -18,7 +18,7 @@ namespace Framework.Core.UnitTests.Pool
 
             _logger = logger;
 
-            LifeTime = 1;
+            LifeTime = 60;
         }
 
         protected override void Dispose(bool disposing)
