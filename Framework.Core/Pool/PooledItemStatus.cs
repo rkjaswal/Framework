@@ -3,6 +3,7 @@
     public enum PooledItemStatus
     {
         Available,
-        InUse
+        InUse,
+        InError
     }
 }

@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using System.Threading;
 
 namespace Framework.Core.Pool
 {
@@ -13,7 +12,6 @@ namespace Framework.Core.Pool
     public class Pool<T> : IPool<T> where T : PooledItem
     {
         private readonly ILogger _logger;
-        private readonly int _maxPoolSize;
         private readonly Func<T> _pooledItemFactory = null;
         private bool _disposed;
         private static object Lock = new object();
@@ -21,19 +19,32 @@ namespace Framework.Core.Pool
         private ConcurrentDictionary<Guid, T> _pooledItems { get; set; }
 
         /// <summary>
+        ///     Gets or sets the pool size.
+        /// </summary>
+        public int Size { get; set; }
+
+        /// <summary>
+        ///     Gets the pooled items count.
+        /// </summary>
+        public int PooledItemCount
+        {
+            get { return _pooledItems.Count; }
+        }
+
+        /// <summary>
         ///     Initializes a new instance of the <see cref="Pool"/> class.
         /// </summary>
-        /// <param name="logger"></param>
-        /// <param name="pooledItemFactory"></param>
-        /// <param name="maxPoolSize"></param>
-        public Pool(ILogger logger, Func<T> pooledItemFactory, int maxPoolSize = 5)
+        /// <param name="logger">The logger.</param>
+        /// <param name="pooledItemFactory">The pooled item factory delegate that creates a new instance of pooled item.</param>
+        /// <param name="poolSize">The pool size. Default is 5.</param>
+        public Pool(ILogger logger, Func<T> pooledItemFactory, int poolSize = 5)
         {
             if (logger == null) throw new ArgumentNullException("logger");
             if (pooledItemFactory == null) throw new ArgumentNullException("pooledItemFactory");
 
             _logger = logger;
             _pooledItemFactory = pooledItemFactory;
-            _maxPoolSize = maxPoolSize;
+            Size = poolSize;
 
             _pooledItems = new ConcurrentDictionary<Guid, T>();
         }
@@ -44,25 +55,37 @@ namespace Framework.Core.Pool
         /// <returns></returns>
         public T Get()
         {
-            RemoveExpiredPooledItems();
+            RemoveExpiredErroredPooledItems();
 
             var existingItem = _pooledItems.FirstOrDefault(p => p.Value.Status == PooledItemStatus.Available);
 
             var availableItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.Available);
             var inUseItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InUse);
+            var inErrorItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InError);
 
             if (existingItem.Value != null)
             {
                 var pItem = existingItem.Value;
 
-                _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pool size is {1}. Available {2}. InUse {3}."
-                    , pItem, _pooledItems.Count, availableItems, inUseItems));
-                return _pooledItems.AddOrUpdate(pItem.Guid, pItem,
-                        (key, existingVal) =>
-                        {
-                            existingVal.Status = PooledItemStatus.InUse;
-                            return existingVal;
-                        });
+                try
+                {
+                    pItem = _pooledItems.AddOrUpdate(pItem.Guid, pItem,
+                            (key, existingVal) =>
+                            {
+                                existingVal.Status = PooledItemStatus.InUse;
+                                return existingVal;
+                            });
+
+                    _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pool size is {1}. Available {2}. InUse {3}. InError {4}."
+                        , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+
+                    return pItem;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(string.Format("Failed to AddOrUpdate existing pooled item. Guid is {0}.", pItem.Guid), ex);
+                    throw;
+                }
             }
             else
             {
@@ -70,20 +93,28 @@ namespace Framework.Core.Pool
 
                 lock (Lock)
                 {
-                    if (_pooledItems.Count >= _maxPoolSize) throw new Exception("Maximum pool size limit reached.");
+                    if (_pooledItems.Count >= Size) throw new Exception("Maximum pool size limit reached.");
                     newPooledItem = CreatePooledItem();
                     newPooledItem.Status = PooledItemStatus.InUse;
                 }
 
-                var pItem = _pooledItems.AddOrUpdate(newPooledItem.Guid, newPooledItem,
-                        (key, existingVal) =>
-                        {
-                            existingVal.Status = PooledItemStatus.InUse;
-                            return existingVal;
-                        });
+                try
+                {
+                    var pItem = _pooledItems.AddOrUpdate(newPooledItem.Guid, newPooledItem,
+                            (key, existingVal) =>
+                            {
+                                existingVal.Status = PooledItemStatus.InUse;
+                                return existingVal;
+                            });
 
-                _logger.Debug(string.Format("Created new pooled item. Guid is {0}. Pool size is {1}.", pItem.Guid, _pooledItems.Count));
-                return pItem;
+                    _logger.Debug(string.Format("Created new pooled item. Guid is {0}. Pool size is {1}.", pItem.Guid, _pooledItems.Count));
+                    return pItem;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(string.Format("Failed to AddOrUpdate new pooled item. Guid is {0}.", newPooledItem.Guid), ex);
+                    throw;
+                }
             }
         }
 
@@ -93,28 +124,26 @@ namespace Framework.Core.Pool
         /// <param name="item">The pooled item.</param>
         public void Return(T pooledItem)
         {
-            if (IsExpired(pooledItem))
+            try
             {
-                try
-                {
-                    Remove(pooledItem);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(string.Format("Failed to remove expired pooled item. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _pooledItems.Count), ex);
-                    throw;
-                }
-            }
-            else
-            {
-                _pooledItems.AddOrUpdate(pooledItem.Guid, pooledItem,
+                var pItem = _pooledItems.AddOrUpdate(pooledItem.Guid, pooledItem,
                         (key, existingVal) =>
                         {
                             existingVal.Status = PooledItemStatus.Available;
                             return existingVal;
                         });
 
-                _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _pooledItems.Count));
+                _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}. Pool size is {1}.", pItem.Guid, _pooledItems.Count));
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(string.Format("Failed to return pooled item back to pool. Guid is {0}.", pooledItem.Guid), ex);
+                throw;
+            }
+
+            if (IsExpired(pooledItem))
+            {
+                Remove(pooledItem);
             }
         }
 
@@ -126,8 +155,15 @@ namespace Framework.Core.Pool
         public void Remove(T pooledItem)
         {
             var pItem = default(T);
-            _pooledItems.TryRemove(pooledItem.Guid, out pItem);
-            _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _pooledItems.Count));
+            if (_pooledItems.TryRemove(pooledItem.Guid, out pItem))
+            {
+                _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _pooledItems.Count));
+            }
+            else
+            {
+                _logger.Error(string.Format("Failed to remove pooled item. Guid is {0}.", pooledItem.Guid));
+                pooledItem.Status = PooledItemStatus.InError;
+            }
             pooledItem.Dispose();
         }
 
@@ -148,8 +184,15 @@ namespace Framework.Core.Pool
             }
         }
 
+        /// <summary>
+        ///     Checks if pooled item is expired.
+        /// </summary>
+        /// <param name="pooledItem">The pooled item.</param>
+        /// <returns></returns>
         private bool IsExpired(T pooledItem)
         {
+            if (pooledItem.Status == PooledItemStatus.InUse) return false;
+
             lock (Lock)
             {
                 var timespan = DateTime.Now - pooledItem.CreateDateTime;
@@ -158,9 +201,19 @@ namespace Framework.Core.Pool
         }
 
         /// <summary>
+        ///     Checks if pooled item is in error.    
+        /// </summary>
+        /// <param name="pooledItem">The pooled item. </param>
+        /// <returns></returns>
+        private bool IsErrored(T pooledItem)
+        {
+            return (pooledItem.Status == PooledItemStatus.InError);
+        }
+
+        /// <summary>
         ///     Removes expired pooled items
         /// </summary>
-        private void RemoveExpiredPooledItems()
+        private void RemoveExpiredErroredPooledItems()
         {
             lock(Lock)
             {
@@ -168,17 +221,9 @@ namespace Framework.Core.Pool
                 {
                     var pItem = pooledItem.Value;
 
-                    if (IsExpired(pItem))
+                    if (IsExpired(pItem) || IsErrored(pItem))
                     {
-                        try
-                        {
-                            Remove(pItem);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error(string.Format("Failed to remove expired pooled item. Guid is {0}. Pool size is {1}.", pItem, _pooledItems.Count), ex);
-                            throw;
-                        }
+                        Remove(pItem);    
                     }
                 }
             }
@@ -207,9 +252,9 @@ namespace Framework.Core.Pool
                 {
                     Remove(pooledItem.Value);
                 }
-
-                _pooledItems = null;
             }
+
+            _pooledItems = null;
 
             _disposed = true;
         }

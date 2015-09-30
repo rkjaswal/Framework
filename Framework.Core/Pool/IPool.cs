@@ -5,6 +5,16 @@ namespace Framework.Core.Pool
     public interface IPool<T> : IDisposable
     {
         /// <summary>
+        ///     Gets or sets the pool size.
+        /// </summary>
+        int Size { get; set; }
+
+        /// <summary>
+        ///     Gets the pooled items count.
+        /// </summary>
+        int PooledItemCount { get; }
+
+        /// <summary>
         ///     Gets a pooled item from the pool.
         /// </summary>
         /// <returns></returns>

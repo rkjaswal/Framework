@@ -9,8 +9,6 @@ namespace Framework.Core.Pool
     {
         private DateTime _createDateTime;
         private Guid _guid;
-        private int _lifeTime;
-        private PooledItemStatus _status;
         private bool _disposed;
 
         /// <summary>
@@ -22,7 +20,7 @@ namespace Framework.Core.Pool
         }
 
         /// <summary>
-        ///     Gets the pooled item guid
+        ///     Gets the pooled item guid.
         /// </summary>
         public Guid Guid
         {
@@ -30,29 +28,24 @@ namespace Framework.Core.Pool
         }
 
         /// <summary>
-        ///     Gets or sets the pooled item lifetime
+        ///     Gets or sets the pooled item lifetime.
         /// </summary>
-        public int LifeTime
-        {
-            get { return _lifeTime; }
-            set { _lifeTime = value; }
-        }
+        public int LifeTime { get; set; }
 
-        public PooledItemStatus Status
-        {
-            get { return _status; }
-            set { _status = value; }
-        }
+        /// <summary>
+        ///     Gets or sets the pooled item status.
+        /// </summary>
+        public PooledItemStatus Status { get; set; }
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PooledItem"/> class.
         /// </summary>
-        /// <param name="lifeTime">Lifetime in minutes. Default is 10 minutes</param>
-        public PooledItem(int lifeTime = 10)
+        /// <param name="lifeTime">Lifetime in seconds. Default is 600 seconds.</param>
+        public PooledItem(int lifeTime = 600)
         {
             _createDateTime = DateTime.Now;
             _guid = Guid.NewGuid();
-            _lifeTime = lifeTime;
+            LifeTime = lifeTime;
         }
 
         /// <summary>

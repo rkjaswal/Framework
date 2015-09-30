@@ -41,13 +41,13 @@ namespace Framework.Core.UnitTests.Pool
             }
 
             var expectedItems = 10;
-            var actualItems = poolItems.Count;
+            var actualItems = pool.PooledItemCount;
 
             Assert.AreEqual(expectedItems, actualItems);
         }
 
         [TestMethod]
-        public void WhenPooledItemIsReturnedThenItIsAddedBackToPool()
+        public void WhenPooledItemIsReturnedThenReturnIsCalled()
         {
             var pool = new Mock<IPool<TestPooledItem>>();
             var poolItems = new List<TestPooledItem>();
@@ -95,7 +95,7 @@ namespace Framework.Core.UnitTests.Pool
             }
 
             var expectedItems = 10;
-            var actualItems = pooledItems.Count;
+            var actualItems = pool.PooledItemCount;
 
             Assert.IsTrue(actualItems >= 0 && actualItems <= expectedItems);
         }
@@ -122,7 +122,7 @@ namespace Framework.Core.UnitTests.Pool
             }
 
             var expectedItems = 10;
-            var actualItems = pooledItems.Count;
+            var actualItems = pool.PooledItemCount;
 
             Assert.AreEqual(expectedItems, actualItems);
         }
@@ -138,7 +138,7 @@ namespace Framework.Core.UnitTests.Pool
             pool.Remove(pooledItem);
 
             var expectedItems = 0;
-            var actualItems = pooledItems.Count;
+            var actualItems = pool.PooledItemCount;
 
             Assert.AreEqual(expectedItems, actualItems);
         }
@@ -197,14 +197,13 @@ namespace Framework.Core.UnitTests.Pool
             Parallel.Invoke(Get, Return, Remove);
 
             var expectedItems = 10;
-            var actualItems = pooledItems.Count;
+            var actualItems = pool.PooledItemCount;
 
             Assert.IsTrue(actualItems >= 0 && actualItems <= expectedItems);
-            Assert.IsTrue(actualItems == enqueueItems - dequeueItems);
         }
 
         [TestMethod]
-        public void ReturnSamePooledItemTwice()
+        public void ReturnSamePooledItemTwiceTest()
         {
             var pool = new Pool<TestPooledItem>(_logger.Object, () => new TestPooledItem(_logger.Object), 10);
             var pooledItems = new ConcurrentQueue<TestPooledItem>();
@@ -214,8 +213,8 @@ namespace Framework.Core.UnitTests.Pool
             pool.Return(pooledItem);
             pool.Return(pooledItem);
 
-            var expectedItems = 0;
-            var actualItems = pooledItems.Count;
+            var expectedItems = 1;
+            var actualItems = pool.PooledItemCount;
 
             Assert.AreEqual(expectedItems, actualItems);
         }

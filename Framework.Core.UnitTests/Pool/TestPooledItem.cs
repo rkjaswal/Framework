@@ -21,6 +21,10 @@ namespace Framework.Core.UnitTests.Pool
             LifeTime = 60;
         }
 
+        /// <summary>
+        ///     Dispose.
+        /// </summary>
+        /// <param name="disposing"></param>
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
