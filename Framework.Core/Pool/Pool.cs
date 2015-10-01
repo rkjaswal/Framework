@@ -65,7 +65,12 @@ namespace Framework.Core.Pool
 
             if (existingItem.Value != null)
             {
-                var pItem = existingItem.Value;
+                var pItem = default(T);
+
+                lock (Lock)
+                {
+                    pItem = existingItem.Value;
+                }
 
                 try
                 {
@@ -76,7 +81,7 @@ namespace Framework.Core.Pool
                                 return existingVal;
                             });
 
-                    _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pool size is {1}. Available {2}. InUse {3}. InError {4}."
+                    _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
                         , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
 
                     return pItem;
@@ -107,7 +112,9 @@ namespace Framework.Core.Pool
                                 return existingVal;
                             });
 
-                    _logger.Debug(string.Format("Created new pooled item. Guid is {0}. Pool size is {1}.", pItem.Guid, _pooledItems.Count));
+                    _logger.Info(string.Format("Created new pooled item. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
+                        , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+
                     return pItem;
                 }
                 catch (Exception ex)
@@ -133,7 +140,7 @@ namespace Framework.Core.Pool
                             return existingVal;
                         });
 
-                _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}. Pool size is {1}.", pItem.Guid, _pooledItems.Count));
+                _logger.Debug(string.Format("Returned pooled item back to pool. Guid is {0}. Pooled items {1}.", pItem.Guid, _pooledItems.Count));
             }
             catch (Exception ex)
             {
@@ -157,7 +164,7 @@ namespace Framework.Core.Pool
             var pItem = default(T);
             if (_pooledItems.TryRemove(pooledItem.Guid, out pItem))
             {
-                _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}. Pool size is {1}.", pooledItem.Guid, _pooledItems.Count));
+                _logger.Debug(string.Format("Removed pooled item from pool. Guid is {0}. Pooled items {1}.", pooledItem.Guid, _pooledItems.Count));
             }
             else
             {
@@ -191,10 +198,10 @@ namespace Framework.Core.Pool
         /// <returns></returns>
         private bool IsExpired(T pooledItem)
         {
-            if (pooledItem.Status == PooledItemStatus.InUse) return false;
-
             lock (Lock)
             {
+                if (pooledItem.Status == PooledItemStatus.InUse) return false;
+
                 var timespan = DateTime.Now - pooledItem.CreateDateTime;
                 return timespan.TotalSeconds >= pooledItem.LifeTime;
             }
@@ -207,7 +214,10 @@ namespace Framework.Core.Pool
         /// <returns></returns>
         private bool IsErrored(T pooledItem)
         {
-            return (pooledItem.Status == PooledItemStatus.InError);
+            lock (Lock)
+            {
+                return (pooledItem.Status == PooledItemStatus.InError);
+            }
         }
 
         /// <summary>
