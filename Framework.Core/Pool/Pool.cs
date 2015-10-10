@@ -16,7 +16,7 @@ namespace Framework.Core.Pool
         private bool _disposed;
         private static object Lock = new object();
 
-        private ConcurrentDictionary<Guid, T> _pooledItems { get; set; }
+        private ConcurrentDictionary<Guid, T> _pooledItems;
 
         /// <summary>
         ///     Gets or sets the pool size.
@@ -57,70 +57,67 @@ namespace Framework.Core.Pool
         {
             RemoveExpiredErroredPooledItems();
 
-            var existingItem = _pooledItems.FirstOrDefault(p => p.Value.Status == PooledItemStatus.Available);
-
-            var availableItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.Available);
-            var inUseItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InUse);
-            var inErrorItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InError);
-
-            if (existingItem.Value != null)
+            lock (Lock)
             {
-                var pItem = default(T);
+                var existingItem = _pooledItems.FirstOrDefault(p => p.Value.Status == PooledItemStatus.Available);
 
-                lock (Lock)
+                var availableItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.Available);
+                var inUseItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InUse);
+                var inErrorItems = _pooledItems.Count(p => p.Value.Status == PooledItemStatus.InError);
+
+                if (existingItem.Value != null)
                 {
+                    var pItem = default(T);
+
                     pItem = existingItem.Value;
+
+                    try
+                    {
+                        pItem = _pooledItems.AddOrUpdate(pItem.Guid, pItem,
+                                (key, existingVal) =>
+                                {
+                                    existingVal.Status = PooledItemStatus.InUse;
+                                    return existingVal;
+                                });
+
+                        _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
+                            , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+
+                        return pItem;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(string.Format("Failed to AddOrUpdate existing pooled item. Guid is {0}.", pItem.Guid), ex);
+                        throw;
+                    }
                 }
-
-                try
+                else
                 {
-                    pItem = _pooledItems.AddOrUpdate(pItem.Guid, pItem,
-                            (key, existingVal) =>
-                            {
-                                existingVal.Status = PooledItemStatus.InUse;
-                                return existingVal;
-                            });
+                    var newPooledItem = default(T);
 
-                    _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
-                        , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
-
-                    return pItem;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(string.Format("Failed to AddOrUpdate existing pooled item. Guid is {0}.", pItem.Guid), ex);
-                    throw;
-                }
-            }
-            else
-            {
-                var newPooledItem = default(T);
-
-                lock (Lock)
-                {
                     if (_pooledItems.Count >= Size) throw new Exception("Maximum pool size limit reached.");
                     newPooledItem = CreatePooledItem();
                     newPooledItem.Status = PooledItemStatus.InUse;
-                }
 
-                try
-                {
-                    var pItem = _pooledItems.AddOrUpdate(newPooledItem.Guid, newPooledItem,
-                            (key, existingVal) =>
-                            {
-                                existingVal.Status = PooledItemStatus.InUse;
-                                return existingVal;
-                            });
+                    try
+                    {
+                        var pItem = _pooledItems.AddOrUpdate(newPooledItem.Guid, newPooledItem,
+                                (key, existingVal) =>
+                                {
+                                    existingVal.Status = PooledItemStatus.InUse;
+                                    return existingVal;
+                                });
 
-                    _logger.Info(string.Format("Created new pooled item. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
-                        , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+                        _logger.Info(string.Format("Created new pooled item. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
+                            , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
 
-                    return pItem;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(string.Format("Failed to AddOrUpdate new pooled item. Guid is {0}.", newPooledItem.Guid), ex);
-                    throw;
+                        return pItem;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(string.Format("Failed to AddOrUpdate new pooled item. Guid is {0}.", newPooledItem.Guid), ex);
+                        throw;
+                    }
                 }
             }
         }
