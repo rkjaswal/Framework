@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 
 namespace Framework.EntityFramework
 {
@@ -26,9 +28,20 @@ namespace Framework.EntityFramework
             return _entitySet.Find(id);
         }
 
+        public virtual async Task<T> GetByIdAsync(object id)
+        {
+            return await _entitySet.FindAsync(id);
+        }
+
         public IQueryable<T> GetAll()
         {
             return _entitySet;
+        }
+
+        public async Task<IQueryable<T>> GetAllAsync()
+        {
+            var result = await _entitySet.ToListAsync();
+            return result.AsQueryable();
         }
 
         public virtual IQueryable<T> Query(Expression<Func<T, bool>> filter)
