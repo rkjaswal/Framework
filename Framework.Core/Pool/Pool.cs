@@ -81,7 +81,7 @@ namespace Framework.Core.Pool
                                 });
 
                         _logger.Debug(string.Format("Got existing pooled item from pool. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
-                            , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+                            , pItem.Guid, _pooledItems.Count, availableItems - 1, inUseItems + 1, inErrorItems));
 
                         return pItem;
                     }
@@ -109,7 +109,7 @@ namespace Framework.Core.Pool
                                 });
 
                         _logger.Info(string.Format("Created new pooled item. Guid is {0}. Pooled items {1}. Available {2}. InUse {3}. InError {4}."
-                            , pItem.Guid, _pooledItems.Count, availableItems, inUseItems, inErrorItems));
+                            , pItem.Guid, _pooledItems.Count, availableItems, inUseItems + 1, inErrorItems));
 
                         return pItem;
                     }
