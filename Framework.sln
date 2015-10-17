@@ -11,6 +11,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Framework.Core", "Framework
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Framework.Core.UnitTests", "Framework.Core.UnitTests\Framework.Core.UnitTests.csproj", "{78FE52ED-D93A-4E92-BF14-8F9A90F36115}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E819A1F8-7C59-4C25-B7BC-FC00271D6577}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{F164E39D-BC67-42A4-9EED-2AE827857248}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "db", "db", "{DDEA8B99-66BF-4F13-B400-C8FD181BB74D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Logger", "Logger", "{B40B7ACD-DCDC-4DA9-A877-5AD41A1C7AE8}"
+	ProjectSection(SolutionItems) = preProject
+		CreateLogDb.sql = CreateLogDb.sql
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,5 +47,12 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C76C02A7-4F5E-4589-9B35-7ACAC60E3C3C} = {E819A1F8-7C59-4C25-B7BC-FC00271D6577}
+		{CB7AE34E-EA5A-4CCB-8227-7CB01912FC82} = {E819A1F8-7C59-4C25-B7BC-FC00271D6577}
+		{7E57A200-298C-4F2C-A6FE-B4BB3CE0F586} = {E819A1F8-7C59-4C25-B7BC-FC00271D6577}
+		{78FE52ED-D93A-4E92-BF14-8F9A90F36115} = {F164E39D-BC67-42A4-9EED-2AE827857248}
+		{B40B7ACD-DCDC-4DA9-A877-5AD41A1C7AE8} = {DDEA8B99-66BF-4F13-B400-C8FD181BB74D}
 	EndGlobalSection
 EndGlobal
