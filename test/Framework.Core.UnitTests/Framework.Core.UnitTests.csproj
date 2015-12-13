@@ -59,18 +59,18 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Framework.Core\Framework.Core.csproj">
+    <None Include="app.config" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Framework.Core\Framework.Core.csproj">
       <Project>{7e57a200-298c-4f2c-a6fe-b4bb3ce0f586}</Project>
       <Name>Framework.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Framework.Logger\Framework.Logger.csproj">
+    <ProjectReference Include="..\..\src\Framework.Logger\Framework.Logger.csproj">
       <Project>{cb7ae34e-ea5a-4ccb-8227-7cb01912fc82}</Project>
       <Name>Framework.Logger</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
